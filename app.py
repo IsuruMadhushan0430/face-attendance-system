@@ -1,41 +1,95 @@
+import cv2
+
 from modules.database import create_database
-from modules.enrollment import Enrollment
+from modules.face_recognition import FaceRecognition
 
 
 def main():
 
     create_database()
 
-    print("==============================")
-    print(" AI FACE ATTENDANCE SYSTEM")
-    print("==============================")
+    recognizer = FaceRecognition(
+        threshold=0.50
+    )
+
+    camera = cv2.VideoCapture(0)
+
+    if not camera.isOpened():
+
+        print("Could not open webcam.")
+
+        return
 
     print()
-    print("1. Enroll Person")
-    print("2. Exit")
+    print("Face recognition started.")
+    print("Press Q to quit.")
 
-    choice = input("Select option: ")
+    while True:
 
-    if choice == "1":
+        ret, frame = camera.read()
 
-        person_id = input("Enter Person ID: ")
-        name = input("Enter Person Name: ")
+        if not ret:
+            break
 
-        enrollment = Enrollment()
-
-        enrollment.enroll_person(
-            person_id,
-            name,
-            required_samples=5
+        faces = recognizer.detector.detect_faces(
+            frame
         )
 
-    elif choice == "2":
+        for face in faces:
 
-        print("Goodbye.")
+            x1, y1, x2, y2 = (
+                face.bbox.astype(int)
+            )
 
-    else:
+            person, similarity = (
+                recognizer.recognize(face)
+            )
 
-        print("Invalid option.")
+            if person:
+
+                person_id, name = person
+
+                label = (
+                    f"{name} "
+                    f"({similarity:.2f})"
+                )
+
+            else:
+
+                label = (
+                    f"Unknown "
+                    f"({similarity:.2f})"
+                )
+
+            cv2.rectangle(
+                frame,
+                (x1, y1),
+                (x2, y2),
+                (0, 255, 0),
+                2
+            )
+
+            cv2.putText(
+                frame,
+                label,
+                (x1, y1 - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 255, 0),
+                2
+            )
+
+        cv2.imshow(
+            "AI Face Recognition",
+            frame
+        )
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    camera.release()
+
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
