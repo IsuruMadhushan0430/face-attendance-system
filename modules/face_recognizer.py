@@ -1,9 +1,10 @@
 import numpy as np
 
+
 class FaceRecognizer:
 
     def get_embedding(self, face):
-        
+
         embedding = face.embedding.astype(np.float32)
 
         norm = np.linalg.norm(embedding)

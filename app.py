@@ -1,15 +1,32 @@
 import cv2
+import uuid
 
 from modules.database import create_database
 from modules.face_recognition import FaceRecognition
+from modules.attendance import AttendanceManager
 
 
 def main():
 
     create_database()
 
+    session_id = str(uuid.uuid4())
+
+    print()
+    print("==============================")
+    print(" AI FACE ATTENDANCE SYSTEM")
+    print("==============================")
+    print()
+    print(f"Session: {session_id}")
+    print("Press Q to quit.")
+    print()
+
     recognizer = FaceRecognition(
         threshold=0.50
+    )
+
+    attendance = AttendanceManager(
+        required_frames=5
     )
 
     camera = cv2.VideoCapture(0)
@@ -19,10 +36,6 @@ def main():
         print("Could not open webcam.")
 
         return
-
-    print()
-    print("Face recognition started.")
-    print("Press Q to quit.")
 
     while True:
 
@@ -51,14 +64,25 @@ def main():
 
                 label = (
                     f"{name} "
-                    f"({similarity:.2f})"
+                    f"{similarity:.2f}"
                 )
+
+                marked = attendance.update(
+                    person,
+                    session_id
+                )
+
+                if marked:
+
+                    label = (
+                        f"{name} - PRESENT"
+                    )
 
             else:
 
                 label = (
                     f"Unknown "
-                    f"({similarity:.2f})"
+                    f"{similarity:.2f}"
                 )
 
             cv2.rectangle(
@@ -80,7 +104,7 @@ def main():
             )
 
         cv2.imshow(
-            "AI Face Recognition",
+            "AI Face Attendance",
             frame
         )
 
@@ -88,8 +112,10 @@ def main():
             break
 
     camera.release()
-
     cv2.destroyAllWindows()
+
+    print()
+    print("Attendance session ended.")
 
 
 if __name__ == "__main__":
