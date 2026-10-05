@@ -1,122 +1,194 @@
-import cv2
-import uuid
+import streamlit as st
 
-from modules.database import create_database
-from modules.face_recognition import FaceRecognition
-from modules.attendance import AttendanceManager
+from modules.database import (
+    create_database,
+    get_all_attendance
+)
 
+create_database()
 
-def main():
+st.set_page_config(
+    page_title="AI Face Attendance",
+    page_icon="👤",
+    layout="wide"
+)
 
-    create_database()
+st.sidebar.title("AI Face Attendance")
 
-    session_id = str(uuid.uuid4())
+page = st.sidebar.radio(
+    "Navigation",
+    [
+        "Dashboard",
+        "Enroll Person",
+        "Live Attendance",
+        "Reports"
+    ]
+)
 
-    print()
-    print("==============================")
-    print(" AI FACE ATTENDANCE SYSTEM")
-    print("==============================")
-    print()
-    print(f"Session: {session_id}")
-    print("Press Q to quit.")
-    print()
+if page == "Dashboard":
 
-    recognizer = FaceRecognition(
-        threshold=0.50
-    )
+    st.title("📊 Attendance Dashboard")
 
-    attendance = AttendanceManager(
-        required_frames=5
-    )
+    attendance = get_all_attendance()
 
-    camera = cv2.VideoCapture(0)
+    people = set()
 
-    if not camera.isOpened():
+    for record in attendance:
+        people.add(record[0])
 
-        print("Could not open webcam.")
+    total_attendance = len(attendance)
+    unique_people = len(people)
 
-        return
+    col1, col2, col3 = st.columns(3)
 
-    while True:
+    with col1:
 
-        ret, frame = camera.read()
-
-        if not ret:
-            break
-
-        faces = recognizer.detector.detect_faces(
-            frame
+        st.metric(
+            "Attendance Records",
+            total_attendance
         )
 
-        for face in faces:
+    with col2:
 
-            x1, y1, x2, y2 = (
-                face.bbox.astype(int)
-            )
-
-            person, similarity = (
-                recognizer.recognize(face)
-            )
-
-            if person:
-
-                person_id, name = person
-
-                label = (
-                    f"{name} "
-                    f"{similarity:.2f}"
-                )
-
-                marked = attendance.update(
-                    person,
-                    session_id
-                )
-
-                if marked:
-
-                    label = (
-                        f"{name} - PRESENT"
-                    )
-
-            else:
-
-                label = (
-                    f"Unknown "
-                    f"{similarity:.2f}"
-                )
-
-            cv2.rectangle(
-                frame,
-                (x1, y1),
-                (x2, y2),
-                (0, 255, 0),
-                2
-            )
-
-            cv2.putText(
-                frame,
-                label,
-                (x1, y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                (0, 255, 0),
-                2
-            )
-
-        cv2.imshow(
-            "AI Face Attendance",
-            frame
+        st.metric(
+            "People Present",
+            unique_people
         )
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+    with col3:
 
-    camera.release()
-    cv2.destroyAllWindows()
+        st.metric(
+            "System Status",
+            "Online"
+        )
 
-    print()
-    print("Attendance session ended.")
+    st.divider()
 
+    st.subheader("Recent Attendance")
 
-if __name__ == "__main__":
-    main()
+    if attendance:
+
+        for record in attendance[:10]:
+
+            person_id = record[0]
+            name = record[1]
+            date = record[2]
+            time = record[3]
+
+            st.write(
+                f"**{name}** "
+                f"({person_id}) — "
+                f"{date} {time}"
+            )
+
+    else:
+
+        st.info(
+            "No attendance records yet."
+        )
+
+elif page == "Enroll Person":
+
+    st.title("👤 Enroll Person")
+
+    st.write(
+        "Register a person in the face recognition system."
+    )
+
+    person_id = st.text_input(
+        "Person ID",
+        placeholder="ST001"
+    )
+
+    name = st.text_input(
+        "Full Name",
+        placeholder="Isuru Madhushan"
+    )
+
+    consent = st.checkbox(
+        "I confirm that this person has provided "
+        "consent for biometric enrollment."
+    )
+
+    if st.button(
+        "Start Enrollment",
+        type="primary"
+    ):
+
+        if not person_id or not name:
+
+            st.error(
+                "Please enter Person ID and Name."
+            )
+
+        elif not consent:
+
+            st.error(
+                "Consent is required before enrollment."
+            )
+
+        else:
+
+            st.success(
+                "Enrollment module will be connected here."
+            )
+
+elif page == "Live Attendance":
+
+    st.title("📷 Live Attendance")
+
+    st.info(
+        "Live camera recognition will be connected here."
+    )
+
+    if st.button(
+        "Start Attendance"
+    ):
+
+        st.warning(
+            "Camera module will be connected "
+            "in the next step."
+        )
+
+elif page == "Reports":
+
+    st.title("📋 Attendance Reports")
+
+    attendance = get_all_attendance()
+
+    if attendance:
+
+        import pandas as pd
+
+        dataframe = pd.DataFrame(
+            attendance,
+            columns=[
+                "Person ID",
+                "Name",
+                "Date",
+                "Time",
+                "Session ID"
+            ]
+        )
+
+        st.dataframe(
+            dataframe,
+            use_container_width=True
+        )
+
+        csv = dataframe.to_csv(
+            index=False
+        )
+
+        st.download_button(
+            label="⬇️ Download CSV",
+            data=csv,
+            file_name="attendance.csv",
+            mime="text/csv"
+        )
+
+    else:
+
+        st.info(
+            "No attendance records available."
+        )
